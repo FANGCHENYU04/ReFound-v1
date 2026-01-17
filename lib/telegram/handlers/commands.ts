@@ -1,10 +1,9 @@
 import type { TelegramMessage, DbUser } from "@/lib/telegram/types"
 import { sendMessage, createInlineKeyboard } from "@/lib/telegram/api"
-import { setConversationState } from "@/lib/telegram/conversation"
-import { MESSAGES } from "@/lib/telegram/messages"
+import { setConversationState, clearConversationState } from "@/lib/telegram/conversation"
+import { MESSAGES, formatItemListItem } from "@/lib/telegram/messages"
 import { ITEM_CATEGORIES } from "@/lib/telegram/types"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { formatItemListItem } from "@/lib/telegram/messages"
 import { isUserAdmin } from "@/lib/telegram/user"
 
 export async function handleCommand(command: string, message: TelegramMessage, user: DbUser): Promise<void> {
@@ -15,7 +14,7 @@ export async function handleCommand(command: string, message: TelegramMessage, u
     switch (command) {
       case "/start":
       case "/help":
-        await sendMessage(chatId, MESSAGES.WELCOME, { parseMode: "HTML" })
+        await handleStart(chatId)
         break
 
       case "/lost":
@@ -27,7 +26,7 @@ export async function handleCommand(command: string, message: TelegramMessage, u
         break
 
       case "/browse":
-        await handleBrowse(chatId, telegramId)
+        await handleBrowse(chatId)
         break
 
       case "/search":
@@ -36,6 +35,11 @@ export async function handleCommand(command: string, message: TelegramMessage, u
 
       case "/my":
         await handleMyItems(chatId, user)
+        break
+
+      case "/cancel":
+        await clearConversationState(telegramId)
+        await sendMessage(chatId, MESSAGES.CANCELLED)
         break
 
       case "/admin":
@@ -55,6 +59,24 @@ export async function handleCommand(command: string, message: TelegramMessage, u
   }
 }
 
+async function handleStart(chatId: number): Promise<void> {
+  const buttons = [
+    [
+      { text: "📝 Report Lost Item", data: "start_lost" },
+      { text: "📦 Report Found Item", data: "start_found" },
+    ],
+    [
+      { text: "🔍 Browse Items", data: "browse_all" },
+      { text: "📁 My Items", data: "my_items" },
+    ],
+  ]
+
+  await sendMessage(chatId, MESSAGES.WELCOME, {
+    parseMode: "HTML",
+    replyMarkup: createInlineKeyboard(buttons),
+  })
+}
+
 async function startReportFlow(chatId: number, telegramId: number, type: "lost" | "found"): Promise<void> {
   await setConversationState(telegramId, "report_category", { itemType: type })
 
@@ -65,15 +87,13 @@ async function startReportFlow(chatId: number, telegramId: number, type: "lost" 
   await sendMessage(chatId, message, { parseMode: "HTML", replyMarkup: keyboard })
 }
 
-async function handleBrowse(chatId: number, telegramId: number): Promise<void> {
-  await setConversationState(telegramId, "browsing", { page: 0 })
-
+async function handleBrowse(chatId: number): Promise<void> {
   const keyboard = createInlineKeyboard([
     [
-      { text: "Lost Items", data: "browse_lost" },
-      { text: "Found Items", data: "browse_found" },
+      { text: "🔴 Lost Items", data: "browse_lost" },
+      { text: "🟢 Found Items", data: "browse_found" },
     ],
-    [{ text: "All Items", data: "browse_all" }],
+    [{ text: "📋 All Items", data: "browse_all" }],
   ])
 
   await sendMessage(chatId, MESSAGES.BROWSE_HEADER, { parseMode: "HTML", replyMarkup: keyboard })
@@ -115,6 +135,7 @@ async function handleMyItems(chatId: number, user: DbUser): Promise<void> {
       data: `myitem_${item.id}`,
     },
   ])
+  buttons.push([{ text: "🏠 Main Menu", data: "menu" }])
 
   await sendMessage(chatId, message, { parseMode: "HTML", replyMarkup: createInlineKeyboard(buttons) })
 }
