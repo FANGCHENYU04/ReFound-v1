@@ -14,56 +14,58 @@ export async function handleMessage(message: TelegramMessage): Promise<void> {
     return
   }
 
-  // Get or create user in database
-  const dbUser = await getOrCreateUser(user)
-  if (!dbUser) {
-    await sendMessage(chatId, MESSAGES.ERROR)
-    return
-  }
-
-  // Check if user is banned
-  if (await isUserBanned(user.id.toString())) {
-    await sendMessage(chatId, MESSAGES.BANNED)
-    return
-  }
-
-  const text = message.text?.trim() || ""
-
-  // Handle commands
-  if (text.startsWith("/")) {
-    const command = text.split(" ")[0].toLowerCase()
-
-    // Cancel always works
-    if (command === "/cancel") {
-      await clearConversationState(user.id.toString())
-      await sendMessage(chatId, MESSAGES.CANCELLED)
+  try {
+    // Get or create user in database
+    const dbUser = await getOrCreateUser(user)
+    if (!dbUser) {
+      console.error("[v0] Failed to get or create user for:", user.id)
+      await sendMessage(chatId, MESSAGES.ERROR)
       return
     }
 
-    // Check if user is in a conversation
-    const convState = await getConversationState(user.id.toString())
-    if (convState && convState.state !== "idle") {
-      // Allow certain commands during conversation
-      if (["/skip", "/done"].includes(command)) {
-        await handleConversationInput(message, dbUser, convState)
+    if (await isUserBanned(user.id)) {
+      await sendMessage(chatId, MESSAGES.BANNED)
+      return
+    }
+
+    const text = message.text?.trim() || ""
+
+    // Handle commands
+    if (text.startsWith("/")) {
+      const command = text.split(" ")[0].toLowerCase()
+
+      // Cancel always works
+      if (command === "/cancel") {
+        await clearConversationState(user.id)
+        await sendMessage(chatId, MESSAGES.CANCELLED)
         return
       }
 
-      // Other commands cancel the conversation
-      await clearConversationState(user.id.toString())
+      const convState = await getConversationState(user.id)
+      if (convState && convState.state !== "idle") {
+        if (["/skip", "/done"].includes(command)) {
+          await handleConversationInput(message, dbUser, convState)
+          return
+        }
+
+        await clearConversationState(user.id)
+      }
+
+      await handleCommand(command, message, dbUser)
+      return
     }
 
-    await handleCommand(command, message, dbUser)
-    return
-  }
+    // Handle conversation flow
+    const convState = await getConversationState(user.id)
+    if (convState && convState.state !== "idle") {
+      await handleConversationInput(message, dbUser, convState)
+      return
+    }
 
-  // Handle conversation flow
-  const convState = await getConversationState(user.id.toString())
-  if (convState && convState.state !== "idle") {
-    await handleConversationInput(message, dbUser, convState)
-    return
+    // No active conversation, show help
+    await sendMessage(chatId, MESSAGES.HELP)
+  } catch (error) {
+    console.error("[v0] Error in handleMessage:", error)
+    await sendMessage(chatId, MESSAGES.ERROR)
   }
-
-  // No active conversation, show help
-  await sendMessage(chatId, MESSAGES.HELP)
 }

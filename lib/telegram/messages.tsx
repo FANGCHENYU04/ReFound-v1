@@ -1,227 +1,163 @@
-export const MESSAGES = {
-  // Welcome and Help
-  WELCOME: `🎉 <b>Welcome to ReFoundNUS Bot!</b>
+import type { DbItem } from "./types"
 
-I help connect lost items with their owners on campus.
+export const MESSAGES = {
+  WELCOME: `<b>Welcome to ReFound NUS!</b>
+
+Your campus lost & found assistant is ready!
+
+<b>What I can do:</b>
+- Report lost or found items
+- Browse and search items
+- Get notified when matches are found
+- Claim items that belong to you
 
 <b>Commands:</b>
 /lost - Report a lost item
 /found - Report a found item
 /browse - Browse all items
-/search - Search for items
-/my - View your reported items
-/help - Show this help message
+/search - Search items
+/my - View your items
+/help - Show this message`,
 
-What would you like to do?`,
+  HELP: `<b>ReFound NUS Commands:</b>
 
-  HELP: `<b>ReFoundNUS Bot Help</b>
-
-<b>Commands:</b>
-/lost - Report something you lost
-/found - Report something you found
-/browse - Browse all active items
+/start - Welcome message
+/lost - Report a lost item
+/found - Report a found item
+/browse - Browse all items
 /search - Search items by keyword
-/my - View and manage your items
-/cancel - Cancel current operation
-/help - Show this message
+/my - View your reported items
+/cancel - Cancel current action
+/help - Show this help`,
 
-<b>Tips:</b>
-• Add photos to help identify items
-• Be specific with descriptions
-• Check regularly for matches`,
+  ERROR: "Something went wrong. Please try again or use /cancel to start over.",
 
-  // Report Flow
-  REPORT_START_LOST: `📝 <b>Report a Lost Item</b>
+  BANNED: "Your account has been suspended. Please contact support.",
+
+  CANCELLED: "Action cancelled. Use /help to see available commands.",
+
+  REPORT_START_LOST: `<b>Report a Lost Item</b>
 
 Let's help you find your item! First, select a category:`,
 
-  REPORT_START_FOUND: `📝 <b>Report a Found Item</b>
+  REPORT_START_FOUND: `<b>Report a Found Item</b>
 
-Great that you want to help! First, select a category:`,
+Great that you found something! Let's help return it to its owner. Select a category:`,
 
-  ENTER_TITLE: `✏️ Enter a short title for the item (e.g., "Blue iPhone 14", "Black Wallet"):`,
+  ASK_TITLE: "What is the item? Please provide a brief title (e.g., 'Blue iPhone 15', 'Black Laptop Bag'):",
 
-  ASK_DESCRIPTION: `📝 Describe the item in detail:
-• Color, brand, size
-• Distinguishing features
-• Any unique marks or damage`,
+  ASK_DESCRIPTION: `Please describe the item in detail. Include:
+- Color, brand, size
+- Any distinguishing features
+- Contents (if applicable)
 
-  ASK_LOCATION: `📍 Where was the item lost/found? Select a location:`,
+Type /skip to skip this step.`,
 
-  ASK_DATE: `📅 When did this happen?
+  ASK_LOCATION: "Where did you lose/find this item? Select a location:",
 
-Enter a date like:
-• "today" or "yesterday"
-• "Monday" or "last Friday"
-• "Jan 15" or "15/1/2024"`,
+  ASK_LOCATION_DETAIL:
+    "Please provide more specific details about the location (e.g., 'Near the main entrance', '3rd floor study area').\n\nType /skip to skip.",
 
-  INVALID_DATE: `❌ I couldn't understand that date. Please try again with formats like:
-• "today" or "yesterday"
-• "Monday" or "last Friday"
-• "Jan 15" or "15/1/2024"`,
+  ASK_DATE: `When did this happen?
 
-  ASK_PHOTOS: `📷 Upload a photo of the item to help identify it.
+You can type:
+- <b>today</b>
+- <b>yesterday</b>
+- Or a date like <b>2024-01-15</b>`,
 
-Type /skip if you don't have a photo, or /done when finished uploading.`,
+  ASK_PHOTOS: `Would you like to add photos of the item?
 
-  PHOTO_RECEIVED: `✅ Photo received! Upload another, or type /done to finish.`,
+Send photos now, or type /done when finished.
+Type /skip to skip adding photos.`,
 
-  ITEM_CREATED_LOST: `✅ <b>Lost item report created!</b>
+  PHOTO_RECEIVED: "Photo received! Send more photos or type /done to finish.",
 
-We'll notify you if we find potential matches. You can view your items with /my.`,
+  INVALID_DATE: "Invalid date format. Please use YYYY-MM-DD format, or type 'today' or 'yesterday'.",
 
-  ITEM_CREATED_FOUND: `✅ <b>Found item report created!</b>
+  ITEM_CREATED_LOST: `<b>Lost item reported!</b>
 
-We'll notify you if someone claims this item. You can view your items with /my.`,
+Your item has been added to the database. We'll notify you if someone reports finding a matching item.
 
-  // Browse
-  BROWSE_HEADER: `📋 <b>Browse Items</b>
+Use /my to view your reported items.`,
 
-Select what you want to see:`,
+  ITEM_CREATED_FOUND: `<b>Found item reported!</b>
 
-  NO_ITEMS: `📭 No items found.`,
+Thank you for helping! Your item has been added to the database. We'll notify you if someone reports losing a matching item.
 
-  // Search
-  ASK_SEARCH_QUERY: `🔍 <b>Search Items</b>
+Use /my to view your reported items.`,
 
-Enter keywords to search for (e.g., "blue wallet", "iPhone", "keys"):`,
+  BROWSE_HEADER: `<b>Browse Items</b>
 
-  SEARCH_RESULTS_HEADER: `🔍 <b>Search Results:</b>
+Select what type of items you want to see:`,
 
-`,
+  NO_ITEMS_FOUND: "No items found matching your criteria.",
 
-  NO_SEARCH_RESULTS: `😕 No items found matching your search. Try different keywords or /browse all items.`,
+  ASK_SEARCH_QUERY: "What are you looking for? Enter keywords to search:",
 
-  // My Items
-  MY_ITEMS_HEADER: `📦 <b>Your Items:</b>
+  SEARCH_RESULTS_HEADER: "<b>Search Results:</b>\n\n",
 
-`,
+  NO_SEARCH_RESULTS: "No items found matching your search. Try different keywords.",
 
-  NO_MY_ITEMS: `📭 You haven't reported any items yet.
+  MY_ITEMS_HEADER: "<b>Your Reported Items:</b>\n\n",
 
-Use /lost to report a lost item or /found to report something you found.`,
+  NO_MY_ITEMS:
+    "You haven't reported any items yet.\n\nUse /lost to report a lost item or /found to report a found item.",
 
-  // Claims
-  CLAIM_REASON: `📝 Please describe why you believe this is your item:
-• Specific details only the owner would know
-• Any identifying marks
-• When/where you lost it`,
+  CLAIM_START: "To claim this item, please describe how you can prove it's yours:",
 
-  CLAIM_SUBMITTED: `✅ <b>Claim submitted!</b>
+  CLAIM_SUBMITTED: `<b>Claim submitted!</b>
 
-The item reporter will be notified and can contact you if approved.`,
+The owner will be notified and will review your claim. You'll be notified once they respond.`,
 
-  CLAIM_ALREADY_EXISTS: `⚠️ You've already submitted a claim for this item. Please wait for the owner to respond.`,
+  CLAIM_ALREADY_EXISTS: "You have already submitted a claim for this item.",
 
-  // Item Management
-  ITEM_DELETED: `🗑️ Item has been deleted.`,
+  ITEM_DELETED: "Item has been deleted.",
 
-  ITEM_SAVED: `✅ Your item has been saved!`,
+  ADMIN_ONLY: "This command is only available to administrators.",
 
-  // Status Messages
-  ERROR: `❌ Something went wrong. Please try again or use /cancel to start over.`,
+  MATCH_NOTIFICATION: `<b>Potential Match Found!</b>
 
-  CANCELLED: `❌ Operation cancelled. Use /help to see available commands.`,
-
-  BANNED: `🚫 Your account has been restricted. Contact an administrator for help.`,
-
-  ADMIN_ONLY: `🔒 This command is only available to administrators.`,
-
-  // Notifications
-  NEW_MATCH_FOUND: `🔔 <b>Potential Match Found!</b>
-
-We found an item that might match yours. Check it out:`,
-
-  NEW_CLAIM_RECEIVED: `🔔 <b>New Claim Received!</b>
-
-Someone has claimed your item. Review their claim:`,
+We found an item that might match what you're looking for. Check it out:`,
 }
 
-export const CATEGORIES = [
-  { id: "electronics", label: "Electronics", emoji: "📱" },
-  { id: "clothing", label: "Clothing", emoji: "👕" },
-  { id: "bags_wallets", label: "Bags & Wallets", emoji: "👜" },
-  { id: "keys", label: "Keys", emoji: "🔑" },
-  { id: "id_cards", label: "ID & Cards", emoji: "💳" },
-  { id: "books", label: "Books & Stationery", emoji: "📚" },
-  { id: "accessories", label: "Accessories", emoji: "⌚" },
-  { id: "sports", label: "Sports Equipment", emoji: "⚽" },
-  { id: "other", label: "Other", emoji: "📦" },
-]
+export function formatItemListItem(item: DbItem, index?: number): string {
+  const prefix = index ? `${index}. ` : ""
+  const emoji = item.type === "lost" ? "🔴" : "🟢"
+  const date = new Date(item.happened_at).toLocaleDateString()
 
-export const LOCATIONS = [
-  { id: "library", label: "Library" },
-  { id: "utown", label: "UTown" },
-  { id: "science", label: "Faculty of Science" },
-  { id: "engineering", label: "Faculty of Engineering" },
-  { id: "arts", label: "Faculty of Arts" },
-  { id: "business", label: "Business School" },
-  { id: "computing", label: "School of Computing" },
-  { id: "law", label: "Faculty of Law" },
-  { id: "canteen", label: "Canteens" },
-  { id: "sports", label: "Sports Facilities" },
-  { id: "bus_stop", label: "Bus Stops" },
-  { id: "other", label: "Other" },
-]
-
-export function formatItemListItem(item: {
-  id: string
-  type: string
-  title: string
-  category: string
-  location: string
-  created_at: string
-}): string {
-  const category = CATEGORIES.find((c) => c.id === item.category)
-  const emoji = category?.emoji || "📦"
-  const type = item.type === "lost" ? "🔴 LOST" : "🟢 FOUND"
-  const date = new Date(item.created_at).toLocaleDateString()
-
-  return `${emoji} <b>${type}:</b> ${item.title}
-📍 ${item.location} | 📅 ${date}`
+  return `${prefix}${emoji} <b>${item.title}</b>
+   Category: ${item.category}
+   Location: ${item.location_name}
+   Date: ${date}`
 }
 
-export function formatItemDetail(item: {
-  id: string
-  type: string
-  title: string
-  description: string
-  category: string
-  location: string
-  date_occurred: string
-  created_at: string
-  status: string
-}): string {
-  const category = CATEGORIES.find((c) => c.id === item.category)
-  const emoji = category?.emoji || "📦"
-  const type = item.type === "lost" ? "🔴 LOST" : "🟢 FOUND"
-  const statusEmoji = item.status === "active" ? "✅" : item.status === "claimed" ? "🎉" : "❌"
+export function formatItemDetail(item: DbItem): string {
+  const emoji = item.type === "lost" ? "🔴 LOST" : "🟢 FOUND"
+  const date = new Date(item.happened_at).toLocaleDateString()
 
-  return `${emoji} <b>${type}: ${item.title}</b>
+  let detail = `<b>${emoji}</b>
 
-📝 <b>Description:</b> ${item.description || "No description"}
-📍 <b>Location:</b> ${item.location}
-📅 <b>Date:</b> ${new Date(item.date_occurred).toLocaleDateString()}
-${statusEmoji} <b>Status:</b> ${item.status}
+<b>${item.title}</b>
 
-<i>Posted: ${new Date(item.created_at).toLocaleDateString()}</i>`
-}
+<b>Category:</b> ${item.category}
+<b>Location:</b> ${item.location_name}
+<b>Date:</b> ${date}`
 
-export function formatMatchesMessage(
-  matches: Array<{
-    item: { id: string; title: string; type: string; location: string }
-    score: number
-  }>,
-): string {
-  if (matches.length === 0) {
-    return "No potential matches found yet."
+  if (item.description) {
+    detail += `\n\n<b>Description:</b>\n${item.description}`
   }
 
-  let message = "🔍 <b>Potential Matches Found:</b>\n\n"
-  matches.forEach((match, index) => {
-    const type = match.item.type === "lost" ? "🔴 Lost" : "🟢 Found"
-    message += `${index + 1}. ${type}: ${match.item.title}\n   📍 ${match.item.location}\n   Match: ${Math.round(match.score * 100)}%\n\n`
-  })
+  return detail
+}
 
+export function formatMatchesMessage(items: DbItem[]): string {
+  if (items.length === 0) {
+    return "No potential matches found."
+  }
+
+  let message = "<b>Potential Matches:</b>\n\n"
+  items.forEach((item, index) => {
+    message += formatItemListItem(item, index + 1) + "\n\n"
+  })
   return message
 }

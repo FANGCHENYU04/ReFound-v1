@@ -9,93 +9,95 @@ import { isUserAdmin } from "@/lib/telegram/user"
 
 export async function handleCommand(command: string, message: TelegramMessage, user: DbUser): Promise<void> {
   const chatId = message.chat.id
-  const telegramId = message.from!.id.toString()
+  const telegramId = message.from!.id
 
-  switch (command) {
-    case "/start":
-    case "/help":
-      await sendMessage(chatId, MESSAGES.WELCOME, { parseMode: "HTML" })
-      break
+  try {
+    switch (command) {
+      case "/start":
+      case "/help":
+        await sendMessage(chatId, MESSAGES.WELCOME, { parseMode: "HTML" })
+        break
 
-    case "/lost":
-      await startReportFlow(chatId, telegramId, "lost")
-      break
+      case "/lost":
+        await startReportFlow(chatId, telegramId, "lost")
+        break
 
-    case "/found":
-      await startReportFlow(chatId, telegramId, "found")
-      break
+      case "/found":
+        await startReportFlow(chatId, telegramId, "found")
+        break
 
-    case "/browse":
-      await handleBrowse(chatId, telegramId)
-      break
+      case "/browse":
+        await handleBrowse(chatId, telegramId)
+        break
 
-    case "/search":
-      await handleSearchStart(chatId, telegramId)
-      break
+      case "/search":
+        await handleSearchStart(chatId, telegramId)
+        break
 
-    case "/my":
-      await handleMyItems(chatId, user)
-      break
+      case "/my":
+        await handleMyItems(chatId, user)
+        break
 
-    case "/admin":
-      if (await isUserAdmin(telegramId)) {
-        await sendMessage(chatId, "🔧 Admin panel coming soon. For now, use the web dashboard.")
-      } else {
-        await sendMessage(chatId, MESSAGES.ADMIN_ONLY)
-      }
-      break
+      case "/admin":
+        if (await isUserAdmin(telegramId)) {
+          await sendMessage(chatId, "Admin panel coming soon. For now, use the web dashboard.")
+        } else {
+          await sendMessage(chatId, MESSAGES.ADMIN_ONLY)
+        }
+        break
 
-    default:
-      await sendMessage(chatId, MESSAGES.HELP, { parseMode: "HTML" })
+      default:
+        await sendMessage(chatId, MESSAGES.HELP, { parseMode: "HTML" })
+    }
+  } catch (error) {
+    console.error("[v0] Error in handleCommand:", error)
+    await sendMessage(chatId, MESSAGES.ERROR)
   }
 }
 
-async function startReportFlow(chatId: number, telegramId: string, type: "lost" | "found"): Promise<void> {
+async function startReportFlow(chatId: number, telegramId: number, type: "lost" | "found"): Promise<void> {
   await setConversationState(telegramId, "report_category", { itemType: type })
 
   const categoryButtons = ITEM_CATEGORIES.map((cat) => [{ text: cat, data: `cat_${cat}` }])
-
   const keyboard = createInlineKeyboard(categoryButtons)
 
   const message = type === "lost" ? MESSAGES.REPORT_START_LOST : MESSAGES.REPORT_START_FOUND
-
-  await sendMessage(chatId, message, {
-    parseMode: "HTML",
-    replyMarkup: keyboard,
-  })
+  await sendMessage(chatId, message, { parseMode: "HTML", replyMarkup: keyboard })
 }
 
-async function handleBrowse(chatId: number, telegramId: string): Promise<void> {
+async function handleBrowse(chatId: number, telegramId: number): Promise<void> {
   await setConversationState(telegramId, "browsing", { page: 0 })
 
   const keyboard = createInlineKeyboard([
     [
-      { text: "🔴 Lost Items", data: "browse_lost" },
-      { text: "🟢 Found Items", data: "browse_found" },
+      { text: "Lost Items", data: "browse_lost" },
+      { text: "Found Items", data: "browse_found" },
     ],
-    [{ text: "📋 All Items", data: "browse_all" }],
+    [{ text: "All Items", data: "browse_all" }],
   ])
 
-  await sendMessage(chatId, MESSAGES.BROWSE_HEADER, {
-    parseMode: "HTML",
-    replyMarkup: keyboard,
-  })
+  await sendMessage(chatId, MESSAGES.BROWSE_HEADER, { parseMode: "HTML", replyMarkup: keyboard })
 }
 
-async function handleSearchStart(chatId: number, telegramId: string): Promise<void> {
+async function handleSearchStart(chatId: number, telegramId: number): Promise<void> {
   await setConversationState(telegramId, "search_query", {})
-
   await sendMessage(chatId, MESSAGES.ASK_SEARCH_QUERY, { parseMode: "HTML" })
 }
 
 async function handleMyItems(chatId: number, user: DbUser): Promise<void> {
-  const { data: items } = await supabaseAdmin
+  const { data: items, error } = await supabaseAdmin
     .from("items")
     .select("*")
     .eq("user_id", user.id)
-    .neq("status", "deleted")
+    .neq("state", "deleted")
     .order("created_at", { ascending: false })
     .limit(10)
+
+  if (error) {
+    console.error("[v0] Error fetching user items:", error)
+    await sendMessage(chatId, MESSAGES.ERROR)
+    return
+  }
 
   if (!items || items.length === 0) {
     await sendMessage(chatId, MESSAGES.NO_MY_ITEMS, { parseMode: "HTML" })
@@ -103,7 +105,6 @@ async function handleMyItems(chatId: number, user: DbUser): Promise<void> {
   }
 
   let message = MESSAGES.MY_ITEMS_HEADER
-
   items.forEach((item, index) => {
     message += formatItemListItem(item, index + 1) + "\n\n"
   })
@@ -115,8 +116,5 @@ async function handleMyItems(chatId: number, user: DbUser): Promise<void> {
     },
   ])
 
-  await sendMessage(chatId, message, {
-    parseMode: "HTML",
-    replyMarkup: createInlineKeyboard(buttons),
-  })
+  await sendMessage(chatId, message, { parseMode: "HTML", replyMarkup: createInlineKeyboard(buttons) })
 }

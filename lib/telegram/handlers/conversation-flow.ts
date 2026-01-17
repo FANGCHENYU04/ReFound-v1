@@ -17,46 +17,51 @@ export async function handleConversationInput(
   convState: { state: string; data: ConversationData },
 ): Promise<void> {
   const chatId = message.chat.id
-  const telegramId = message.from!.id.toString()
+  const telegramId = message.from!.id
   const text = message.text?.trim() || ""
   const state = convState.state
   const data = convState.data
 
-  switch (state) {
-    case "report_title":
-      await handleReportTitle(chatId, telegramId, text, data)
-      break
-    case "report_description":
-      await handleReportDescription(chatId, telegramId, text, data)
-      break
-    case "report_location_detail":
-      await handleReportLocationDetail(chatId, telegramId, text, data)
-      break
-    case "report_date":
-      await handleReportDate(chatId, telegramId, text, data)
-      break
-    case "report_photos":
-      await handleReportPhotos(chatId, telegramId, message, user, data)
-      break
-    case "search_query":
-      await handleSearchQuery(chatId, telegramId, text)
-      break
-    case "claim_message":
-      await handleClaimMessage(chatId, telegramId, text, user, data)
-      break
-    default:
-      await sendMessage(chatId, MESSAGES.HELP, { parseMode: "HTML" })
+  try {
+    switch (state) {
+      case "report_title":
+        await handleReportTitle(chatId, telegramId, text, data)
+        break
+      case "report_description":
+        await handleReportDescription(chatId, telegramId, text, data)
+        break
+      case "report_location_detail":
+        await handleReportLocationDetail(chatId, telegramId, text, data)
+        break
+      case "report_date":
+        await handleReportDate(chatId, telegramId, text, data)
+        break
+      case "report_photos":
+        await handleReportPhotos(chatId, telegramId, message, user, data)
+        break
+      case "search_query":
+        await handleSearchQuery(chatId, telegramId, text)
+        break
+      case "claim_message":
+        await handleClaimMessage(chatId, telegramId, text, user, data)
+        break
+      default:
+        await sendMessage(chatId, MESSAGES.HELP, { parseMode: "HTML" })
+    }
+  } catch (error) {
+    console.error("[v0] Error in handleConversationInput:", error)
+    await sendMessage(chatId, MESSAGES.ERROR)
   }
 }
 
 async function handleReportTitle(
   chatId: number,
-  telegramId: string,
+  telegramId: number,
   text: string,
   data: ConversationData,
 ): Promise<void> {
   if (text.length < 3) {
-    await sendMessage(chatId, "❌ Title is too short. Please provide a more descriptive title.")
+    await sendMessage(chatId, "Title is too short. Please provide a more descriptive title.")
     return
   }
 
@@ -67,7 +72,7 @@ async function handleReportTitle(
 
 async function handleReportDescription(
   chatId: number,
-  telegramId: string,
+  telegramId: number,
   text: string,
   data: ConversationData,
 ): Promise<void> {
@@ -83,7 +88,7 @@ async function handleReportDescription(
 
 async function handleReportLocationDetail(
   chatId: number,
-  telegramId: string,
+  telegramId: number,
   text: string,
   data: ConversationData,
 ): Promise<void> {
@@ -95,20 +100,20 @@ async function handleReportLocationDetail(
 
 async function handleReportDate(
   chatId: number,
-  telegramId: string,
+  telegramId: number,
   text: string,
   data: ConversationData,
 ): Promise<void> {
   let dateOccurred: string
 
   if (text.toLowerCase() === "today") {
-    dateOccurred = new Date().toISOString().split("T")[0]
+    dateOccurred = new Date().toISOString()
   } else if (text.toLowerCase() === "yesterday") {
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
-    dateOccurred = yesterday.toISOString().split("T")[0]
+    dateOccurred = yesterday.toISOString()
   } else if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    dateOccurred = text
+    dateOccurred = new Date(text).toISOString()
   } else {
     await sendMessage(chatId, MESSAGES.INVALID_DATE, { parseMode: "HTML" })
     return
@@ -121,7 +126,7 @@ async function handleReportDate(
 
 async function handleReportPhotos(
   chatId: number,
-  telegramId: string,
+  telegramId: number,
   message: TelegramMessage,
   user: DbUser,
   data: ConversationData,
@@ -140,11 +145,11 @@ async function handleReportPhotos(
     await updateConversationData(telegramId, { photos })
     await sendMessage(chatId, MESSAGES.PHOTO_RECEIVED, { parseMode: "HTML" })
   } else {
-    await sendMessage(chatId, "📸 Please send a photo or type /done to finish.", { parseMode: "HTML" })
+    await sendMessage(chatId, "Please send a photo or type /done to finish.", { parseMode: "HTML" })
   }
 }
 
-async function createItem(chatId: number, telegramId: string, user: DbUser, data: ConversationData): Promise<void> {
+async function createItem(chatId: number, telegramId: number, user: DbUser, data: ConversationData): Promise<void> {
   const { data: item, error } = await supabaseAdmin
     .from("items")
     .insert({
@@ -153,18 +158,16 @@ async function createItem(chatId: number, telegramId: string, user: DbUser, data
       category: data.category,
       title: data.title,
       description: data.description || null,
-      color: data.color || null,
-      brand: data.brand || null,
-      location: data.location,
-      location_detail: data.locationDetail || null,
-      date_occurred: data.dateOccurred,
-      status: "active",
+      location_name: data.location || "Unknown",
+      happened_at: data.dateOccurred || new Date().toISOString(),
+      state: "active",
+      verification_question: data.verificationQuestion || null,
     })
     .select()
     .single()
 
   if (error || !item) {
-    console.error("Failed to create item:", error)
+    console.error("[v0] Failed to create item:", error)
     await sendMessage(chatId, MESSAGES.ERROR, { parseMode: "HTML" })
     await clearConversationState(telegramId)
     return
@@ -173,9 +176,12 @@ async function createItem(chatId: number, telegramId: string, user: DbUser, data
   if (data.photos && data.photos.length > 0) {
     const photoInserts = data.photos.map((fileId) => ({
       item_id: item.id,
-      file_id: fileId,
+      telegram_file_id: fileId,
     }))
-    await supabaseAdmin.from("photos").insert(photoInserts)
+    const { error: photoError } = await supabaseAdmin.from("photos").insert(photoInserts)
+    if (photoError) {
+      console.error("[v0] Failed to insert photos:", photoError)
+    }
   }
 
   await clearConversationState(telegramId)
@@ -187,21 +193,27 @@ async function createItem(chatId: number, telegramId: string, user: DbUser, data
   notifyPotentialMatches(item.id).catch(console.error)
 }
 
-async function handleSearchQuery(chatId: number, telegramId: string, query: string): Promise<void> {
+async function handleSearchQuery(chatId: number, telegramId: number, query: string): Promise<void> {
   if (query.length < 2) {
-    await sendMessage(chatId, "❌ Search query is too short. Please enter at least 2 characters.")
+    await sendMessage(chatId, "Search query is too short. Please enter at least 2 characters.")
     return
   }
 
-  const { data: items } = await supabaseAdmin
+  const { data: items, error } = await supabaseAdmin
     .from("items")
     .select("*")
-    .eq("status", "active")
+    .eq("state", "active")
     .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
     .order("created_at", { ascending: false })
     .limit(10)
 
   await clearConversationState(telegramId)
+
+  if (error) {
+    console.error("[v0] Search error:", error)
+    await sendMessage(chatId, MESSAGES.ERROR)
+    return
+  }
 
   if (!items || items.length === 0) {
     await sendMessage(chatId, MESSAGES.NO_SEARCH_RESULTS, { parseMode: "HTML" })
@@ -222,15 +234,12 @@ async function handleSearchQuery(chatId: number, telegramId: string, query: stri
     },
   ])
 
-  await sendMessage(chatId, message, {
-    parseMode: "HTML",
-    replyMarkup: createInlineKeyboard(buttons),
-  })
+  await sendMessage(chatId, message, { parseMode: "HTML", replyMarkup: createInlineKeyboard(buttons) })
 }
 
 async function handleClaimMessage(
   chatId: number,
-  telegramId: string,
+  telegramId: number,
   text: string,
   user: DbUser,
   data: ConversationData,
@@ -246,7 +255,7 @@ async function handleClaimMessage(
     .from("claims")
     .select("id")
     .eq("item_id", data.selectedItemId)
-    .eq("claimer_id", user.id)
+    .eq("claimant_user_id", user.id)
     .single()
 
   if (existingClaim) {
@@ -255,16 +264,16 @@ async function handleClaimMessage(
     return
   }
 
-  // Create claim
+  // Create claim with correct column names
   const { error } = await supabaseAdmin.from("claims").insert({
     item_id: data.selectedItemId,
-    claimer_id: user.id,
-    message: text,
+    claimant_user_id: user.id,
+    answer_text: text,
     status: "pending",
   })
 
   if (error) {
-    console.error("Failed to create claim:", error)
+    console.error("[v0] Failed to create claim:", error)
     await sendMessage(chatId, MESSAGES.ERROR, { parseMode: "HTML" })
     await clearConversationState(telegramId)
     return

@@ -6,8 +6,6 @@ export interface ConversationData {
   category?: string
   title?: string
   description?: string
-  color?: string
-  brand?: string
   location?: string
   locationDetail?: string
   dateOccurred?: string
@@ -17,49 +15,54 @@ export interface ConversationData {
   selectedItemId?: string
   claimMessage?: string
   page?: number
+  verificationQuestion?: string
 }
 
 export async function getConversationState(
-  telegramId: string,
+  telegramId: number,
 ): Promise<{ state: string; data: ConversationData } | null> {
-  const { data: user } = await supabaseAdmin.from("users").select("id").eq("telegram_id", telegramId).single()
+  const { data, error } = await supabaseAdmin
+    .from("conversation_states")
+    .select("state, data")
+    .eq("tg_user_id", telegramId)
+    .single()
 
-  if (!user) return null
-
-  const { data } = await supabaseAdmin.from("conversation_states").select("state, data").eq("user_id", user.id).single()
+  if (error && error.code !== "PGRST116") {
+    console.error("[v0] Error getting conversation state:", error)
+  }
 
   return data as { state: string; data: ConversationData } | null
 }
 
 export async function setConversationState(
-  telegramId: string,
+  telegramId: number,
   state: string,
   data: ConversationData = {},
 ): Promise<void> {
-  const { data: user } = await supabaseAdmin.from("users").select("id").eq("telegram_id", telegramId).single()
-
-  if (!user) return
-
-  await supabaseAdmin.from("conversation_states").upsert(
+  const { error } = await supabaseAdmin.from("conversation_states").upsert(
     {
-      user_id: user.id,
+      tg_user_id: telegramId,
       state,
       data,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "user_id" },
+    { onConflict: "tg_user_id" },
   )
+
+  if (error) {
+    console.error("[v0] Error setting conversation state:", error)
+  }
 }
 
-export async function clearConversationState(telegramId: string): Promise<void> {
-  const { data: user } = await supabaseAdmin.from("users").select("id").eq("telegram_id", telegramId).single()
+export async function clearConversationState(telegramId: number): Promise<void> {
+  const { error } = await supabaseAdmin.from("conversation_states").delete().eq("tg_user_id", telegramId)
 
-  if (!user) return
-
-  await supabaseAdmin.from("conversation_states").delete().eq("user_id", user.id)
+  if (error) {
+    console.error("[v0] Error clearing conversation state:", error)
+  }
 }
 
-export async function updateConversationData(telegramId: string, updates: Partial<ConversationData>): Promise<void> {
+export async function updateConversationData(telegramId: number, updates: Partial<ConversationData>): Promise<void> {
   const current = await getConversationState(telegramId)
   if (!current) return
 

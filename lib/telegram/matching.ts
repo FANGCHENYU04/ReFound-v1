@@ -6,38 +6,35 @@ interface MatchableItem {
   category: string
   title: string
   description: string | null
-  location: string
-  date_occurred: string
+  location_name: string
+  happened_at: string
   user_id: string
 }
 
 export async function findMatches(newItem: MatchableItem): Promise<MatchableItem[]> {
-  // Find items of opposite type (lost vs found) with similar attributes
   const oppositeType = newItem.type === "lost" ? "found" : "lost"
 
   const { data: candidates } = await supabaseAdmin
     .from("items")
-    .select("id, type, category, title, description, location, date_occurred, user_id")
+    .select("id, type, category, title, description, location_name, happened_at, user_id")
     .eq("type", oppositeType)
-    .eq("status", "active")
+    .eq("state", "active")
     .eq("category", newItem.category)
     .neq("user_id", newItem.user_id)
-    .gte("date_occurred", getDateRange(newItem.date_occurred, -7))
-    .lte("date_occurred", getDateRange(newItem.date_occurred, 7))
+    .gte("happened_at", getDateRange(newItem.happened_at, -7))
+    .lte("happened_at", getDateRange(newItem.happened_at, 7))
 
   if (!candidates || candidates.length === 0) {
     return []
   }
 
-  // Score and rank matches
   const scoredMatches = candidates.map((candidate) => ({
-    item: candidate,
-    score: calculateMatchScore(newItem, candidate),
+    item: candidate as MatchableItem,
+    score: calculateMatchScore(newItem, candidate as MatchableItem),
   }))
 
-  // Filter and sort by score
   return scoredMatches
-    .filter((m) => m.score >= 30) // Minimum 30% match
+    .filter((m) => m.score >= 30)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
     .map((m) => m.item)
@@ -46,29 +43,24 @@ export async function findMatches(newItem: MatchableItem): Promise<MatchableItem
 function calculateMatchScore(item1: MatchableItem, item2: MatchableItem): number {
   let score = 0
 
-  // Category match (already filtered, but add weight)
   if (item1.category === item2.category) {
     score += 25
   }
 
-  // Location match
-  if (item1.location === item2.location) {
+  if (item1.location_name === item2.location_name) {
     score += 25
   }
 
-  // Title similarity
   const titleSimilarity = calculateTextSimilarity(item1.title, item2.title)
   score += titleSimilarity * 30
 
-  // Description similarity
   if (item1.description && item2.description) {
     const descSimilarity = calculateTextSimilarity(item1.description, item2.description)
     score += descSimilarity * 20
   }
 
-  // Date proximity (closer dates = higher score)
   const daysDiff =
-    Math.abs(new Date(item1.date_occurred).getTime() - new Date(item2.date_occurred).getTime()) / (1000 * 60 * 60 * 24)
+    Math.abs(new Date(item1.happened_at).getTime() - new Date(item2.happened_at).getTime()) / (1000 * 60 * 60 * 24)
 
   if (daysDiff <= 1) {
     score += 10
@@ -95,28 +87,25 @@ function calculateTextSimilarity(text1: string, text2: string): number {
 function getDateRange(date: string, days: number): string {
   const d = new Date(date)
   d.setDate(d.getDate() + days)
-  return d.toISOString().split("T")[0]
+  return d.toISOString()
 }
 
-// Check for matches periodically and notify users
 export async function notifyPotentialMatches(itemId: string): Promise<void> {
-  const { data: item } = await supabaseAdmin.from("items").select("*, users(telegram_id)").eq("id", itemId).single()
+  const { data: item } = await supabaseAdmin.from("items").select("*").eq("id", itemId).single()
 
   if (!item) return
 
-  const matches = await findMatches(item)
+  const matches = await findMatches(item as MatchableItem)
 
   if (matches.length > 0) {
-    // Store matches in database
     const matchInserts = matches.map((match) => ({
-      lost_item_id: item.type === "lost" ? item.id : match.id,
-      found_item_id: item.type === "found" ? item.id : match.id,
-      score: 50, // Simplified score
-      status: "pending",
+      source_item_id: item.id,
+      candidate_item_id: match.id,
+      score: 50,
     }))
 
     await supabaseAdmin.from("matches").upsert(matchInserts, {
-      onConflict: "lost_item_id,found_item_id",
+      onConflict: "source_item_id,candidate_item_id",
     })
   }
 }

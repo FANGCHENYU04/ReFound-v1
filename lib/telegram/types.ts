@@ -72,11 +72,9 @@ export interface SendMessageOptions {
 // Database types
 export interface DbUser {
   id: string
-  telegram_id: string
+  tg_user_id: number
   username: string | null
-  first_name: string
-  last_name: string | null
-  role: "student" | "admin"
+  full_name: string
   is_banned: boolean
   created_at: string
   updated_at: string
@@ -89,12 +87,12 @@ export interface DbItem {
   category: string
   title: string
   description: string | null
-  color: string | null
-  brand: string | null
-  location: string
-  location_detail: string | null
-  date_occurred: string
-  status: "active" | "claimed" | "expired" | "deleted"
+  location_name: string
+  lat: number | null
+  lng: number | null
+  happened_at: string
+  state: "active" | "claimed" | "expired" | "deleted"
+  verification_question: string | null
   created_at: string
   updated_at: string
 }
@@ -102,25 +100,27 @@ export interface DbItem {
 export interface DbPhoto {
   id: string
   item_id: string
-  file_id: string
-  file_url: string | null
+  telegram_file_id: string
+  storage_url: string | null
+  phash: string | null
   created_at: string
 }
 
 export interface DbClaim {
   id: string
   item_id: string
-  claimer_id: string
-  message: string | null
-  status: "pending" | "approved" | "rejected"
+  claimant_user_id: string
+  answer_text: string | null
+  status: string
   created_at: string
   updated_at: string
 }
 
 export interface ConversationState {
   id: string
-  user_id: string
+  tg_user_id: number
   state: string
+  flow_type: string | null
   data: Record<string, unknown>
   created_at: string
   updated_at: string
