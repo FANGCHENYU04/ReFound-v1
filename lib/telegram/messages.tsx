@@ -1,5 +1,6 @@
 import type { DbItem } from "./types"
 
+// All bot messages
 export const MESSAGES = {
   WELCOME: `<b>Welcome to ReFound NUS!</b>
 
@@ -15,149 +16,150 @@ Your campus lost & found assistant is ready!
 /lost - Report a lost item
 /found - Report a found item
 /browse - Browse all items
-/search - Search items
+/search - Search for items
 /my - View your items
 /help - Show this message`,
 
   HELP: `<b>ReFound NUS Commands:</b>
 
-/start - Welcome message
 /lost - Report a lost item
 /found - Report a found item
 /browse - Browse all items
-/search - Search items by keyword
+/search - Search for items
 /my - View your reported items
 /cancel - Cancel current action
-/help - Show this help`,
+
+Need help? Contact @ReFoundNUS_Support`,
 
   ERROR: "Something went wrong. Please try again or use /cancel to start over.",
 
-  BANNED: "Your account has been suspended. Please contact support.",
+  BANNED: "Your account has been suspended. Contact support for assistance.",
 
   CANCELLED: "Action cancelled. Use /help to see available commands.",
 
-  REPORT_START_LOST: `<b>Report a Lost Item</b>
+  REPORT_START_LOST: `<b>Report Lost Item</b>
 
 Let's help you find your item! First, select a category:`,
 
-  REPORT_START_FOUND: `<b>Report a Found Item</b>
+  REPORT_START_FOUND: `<b>Report Found Item</b>
 
-Great that you found something! Let's help return it to its owner. Select a category:`,
+Thank you for helping! First, select the item category:`,
 
-  ASK_TITLE: "What is the item? Please provide a brief title (e.g., 'Blue iPhone 15', 'Black Laptop Bag'):",
+  ASK_TITLE: `<b>Item Title</b>
 
-  ASK_DESCRIPTION: `Please describe the item in detail. Include:
-- Color, brand, size
-- Any distinguishing features
-- Contents (if applicable)
+Please enter a short, descriptive title for the item (e.g., "Blue iPhone 15 Pro" or "Black Leather Wallet"):`,
 
-Type /skip to skip this step.`,
+  ASK_DESCRIPTION: `<b>Description</b>
 
-  ASK_LOCATION: "Where did you lose/find this item? Select a location:",
+Add more details about the item (color, brand, distinguishing features, etc.).
 
-  ASK_LOCATION_DETAIL:
-    "Please provide more specific details about the location (e.g., 'Near the main entrance', '3rd floor study area').\n\nType /skip to skip.",
+Send /skip if you don't want to add a description.`,
 
-  ASK_DATE: `When did this happen?
+  ASK_LOCATION: `<b>Location</b>
 
-You can type:
-- <b>today</b>
-- <b>yesterday</b>
-- Or a date like <b>2024-01-15</b>`,
+Where did you lose/find this item? Select a location:`,
 
-  ASK_PHOTOS: `Would you like to add photos of the item?
+  ASK_LOCATION_DETAIL: `<b>Location Details</b>
 
-Send photos now, or type /done when finished.
-Type /skip to skip adding photos.`,
+Please provide more specific details about the location (e.g., "Near the water fountain on level 2").
 
-  PHOTO_RECEIVED: "Photo received! Send more photos or type /done to finish.",
+Send /skip if you don't have more details.`,
 
-  INVALID_DATE: "Invalid date format. Please use YYYY-MM-DD format, or type 'today' or 'yesterday'.",
+  ASK_DATE: `<b>Date</b>
+
+When did this happen? You can type:
+- "today"
+- "yesterday"
+- A date like "2025-01-15"`,
+
+  INVALID_DATE: `Invalid date format. Please enter:
+- "today"
+- "yesterday"
+- A date like "2025-01-15"`,
+
+  ASK_PHOTOS: `<b>Photos</b>
+
+Send photos of the item to help with identification. You can send multiple photos.
+
+When done, send /done to finish or /skip to skip photos.`,
+
+  PHOTO_RECEIVED: "Photo received! Send more photos or /done to finish.",
 
   ITEM_CREATED_LOST: `<b>Lost item reported!</b>
 
-Your item has been added to the database. We'll notify you if someone reports finding a matching item.
+Your item has been added to our database. We'll notify you if someone reports finding a similar item.
 
-Use /my to view your reported items.`,
+Use /my to view or edit your items.`,
 
   ITEM_CREATED_FOUND: `<b>Found item reported!</b>
 
-Thank you for helping! Your item has been added to the database. We'll notify you if someone reports losing a matching item.
+Thank you for helping! The owner will be notified if they're looking for this item.
 
-Use /my to view your reported items.`,
+Use /my to view or edit your items.`,
 
   BROWSE_HEADER: `<b>Browse Items</b>
 
-Select what type of items you want to see:`,
+What would you like to see?`,
 
-  NO_ITEMS_FOUND: "No items found matching your criteria.",
+  NO_ITEMS: "No items found. Check back later or try a different filter.",
 
-  ASK_SEARCH_QUERY: "What are you looking for? Enter keywords to search:",
+  NO_MY_ITEMS: `You haven't reported any items yet.
 
-  SEARCH_RESULTS_HEADER: "<b>Search Results:</b>\n\n",
+Use /lost to report a lost item or /found to report a found item.`,
+
+  MY_ITEMS_HEADER: `<b>Your Items</b>
+
+Here are your reported items:\n`,
+
+  ASK_SEARCH_QUERY: `<b>Search Items</b>
+
+Enter keywords to search for (e.g., "iPhone", "blue wallet", "keys"):`,
 
   NO_SEARCH_RESULTS: "No items found matching your search. Try different keywords.",
 
-  MY_ITEMS_HEADER: "<b>Your Reported Items:</b>\n\n",
+  SEARCH_RESULTS_HEADER: `<b>Search Results</b>\n\n`,
 
-  NO_MY_ITEMS:
-    "You haven't reported any items yet.\n\nUse /lost to report a lost item or /found to report a found item.",
+  ASK_CLAIM_MESSAGE: `<b>Claim This Item</b>
 
-  CLAIM_START: "To claim this item, please describe how you can prove it's yours:",
+To verify ownership, please answer the verification question or describe any unique identifying features of the item:`,
 
-  CLAIM_SUBMITTED: `<b>Claim submitted!</b>
+  CLAIM_SUBMITTED: `<b>Claim Submitted!</b>
 
-The owner will be notified and will review your claim. You'll be notified once they respond.`,
+The item owner will review your claim and contact you if verified.`,
 
-  CLAIM_ALREADY_EXISTS: "You have already submitted a claim for this item.",
+  CLAIM_ALREADY_EXISTS: "You've already submitted a claim for this item. Please wait for a response.",
 
-  ITEM_DELETED: "Item has been deleted.",
-
-  ADMIN_ONLY: "This command is only available to administrators.",
-
-  MATCH_NOTIFICATION: `<b>Potential Match Found!</b>
-
-We found an item that might match what you're looking for. Check it out:`,
+  ADMIN_ONLY: "This command is only available for administrators.",
 }
 
+// Format a single item for list display
 export function formatItemListItem(item: DbItem, index?: number): string {
   const prefix = index ? `${index}. ` : ""
-  const emoji = item.type === "lost" ? "🔴" : "🟢"
+  const typeEmoji = item.type === "lost" ? "🔴 Lost" : "🟢 Found"
   const date = new Date(item.happened_at).toLocaleDateString()
 
-  return `${prefix}${emoji} <b>${item.title}</b>
-   Category: ${item.category}
-   Location: ${item.location_name}
-   Date: ${date}`
+  return `${prefix}<b>${typeEmoji}</b>: ${escapeHtml(item.title)}
+📍 ${escapeHtml(item.location_name)} | 📅 ${date}`
 }
 
+// Format item detail view
 export function formatItemDetail(item: DbItem): string {
-  const emoji = item.type === "lost" ? "🔴 LOST" : "🟢 FOUND"
+  const typeEmoji = item.type === "lost" ? "🔴 LOST" : "🟢 FOUND"
   const date = new Date(item.happened_at).toLocaleDateString()
 
-  let detail = `<b>${emoji}</b>
-
-<b>${item.title}</b>
-
-<b>Category:</b> ${item.category}
-<b>Location:</b> ${item.location_name}
-<b>Date:</b> ${date}`
+  let message = `<b>${typeEmoji}: ${escapeHtml(item.title)}</b>\n\n`
+  message += `📁 Category: ${escapeHtml(item.category)}\n`
+  message += `📍 Location: ${escapeHtml(item.location_name)}\n`
+  message += `📅 Date: ${date}\n`
 
   if (item.description) {
-    detail += `\n\n<b>Description:</b>\n${item.description}`
+    message += `\n📝 Description:\n${escapeHtml(item.description)}\n`
   }
 
-  return detail
+  return message
 }
 
-export function formatMatchesMessage(items: DbItem[]): string {
-  if (items.length === 0) {
-    return "No potential matches found."
-  }
-
-  let message = "<b>Potential Matches:</b>\n\n"
-  items.forEach((item, index) => {
-    message += formatItemListItem(item, index + 1) + "\n\n"
-  })
-  return message
+// Escape HTML special characters
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }

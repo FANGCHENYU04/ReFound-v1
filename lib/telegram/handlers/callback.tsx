@@ -1,263 +1,239 @@
-import { supabaseAdmin } from "@/lib/supabase/admin"
+import type { TelegramCallbackQuery, DbItem } from "@/lib/telegram/types"
 import { sendMessage, answerCallbackQuery, editMessageText, createInlineKeyboard } from "@/lib/telegram/api"
-import { setConversationState, clearConversationState } from "@/lib/telegram/conversation"
+import { setConversationState } from "@/lib/telegram/conversation"
 import { MESSAGES, formatItemListItem, formatItemDetail } from "@/lib/telegram/messages"
-import type { TelegramCallbackQuery } from "@/lib/telegram/types"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { getOrCreateUser } from "@/lib/telegram/user"
 
-export async function handleCallbackQuery(callback: TelegramCallbackQuery) {
-  const chatId = callback.message?.chat.id
-  const messageId = callback.message?.message_id
-  const data = callback.data
-  const telegramId = callback.from.id
+export async function handleCallbackQuery(query: TelegramCallbackQuery): Promise<void> {
+  const chatId = query.message?.chat.id
+  const messageId = query.message?.message_id
+  const data = query.data || ""
+  const telegramId = query.from.id
 
-  if (!chatId || !data) {
-    return answerCallbackQuery(callback.id, "Invalid callback")
+  if (!chatId || !messageId) {
+    await answerCallbackQuery(query.id, "Invalid callback")
+    return
   }
 
   try {
-    // Handle category selection (cat_Electronics, etc.)
+    // Get or create user
+    const user = await getOrCreateUser(query.from)
+    if (!user) {
+      await answerCallbackQuery(query.id, "Error: User not found")
+      return
+    }
+
+    // Category selection: cat_Electronics
     if (data.startsWith("cat_")) {
       const category = data.replace("cat_", "")
-      await handleCategorySelection(chatId, telegramId, category, callback.id)
+      await handleCategorySelect(chatId, messageId, telegramId, category)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    // Handle location selection (loc_Library, etc.)
+    // Location selection: loc_Library
     if (data.startsWith("loc_")) {
       const location = data.replace("loc_", "")
-      await handleLocationSelection(chatId, telegramId, location, callback.id)
+      await handleLocationSelect(chatId, messageId, telegramId, location)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    // Handle browse actions
+    // Browse actions: browse_lost, browse_found, browse_all
     if (data.startsWith("browse_")) {
       const filter = data.replace("browse_", "")
-      await handleBrowse(chatId, messageId!, filter, 0, callback.id)
+      await handleBrowseItems(chatId, messageId, filter)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    // Handle view item
+    // View item: view_uuid
     if (data.startsWith("view_")) {
       const itemId = data.replace("view_", "")
-      await handleViewItem(chatId, messageId!, itemId, callback.id)
+      await handleViewItem(chatId, messageId, itemId, user.id)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    // Handle claim item
+    // Claim item: claim_uuid
     if (data.startsWith("claim_")) {
       const itemId = data.replace("claim_", "")
-      await handleStartClaim(chatId, telegramId, itemId, callback.id)
+      await handleStartClaim(chatId, telegramId, itemId)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    // Handle my item view
+    // My item actions: myitem_uuid
     if (data.startsWith("myitem_")) {
       const itemId = data.replace("myitem_", "")
-      await handleMyItemView(chatId, messageId!, itemId, telegramId, callback.id)
+      await handleMyItemView(chatId, messageId, itemId)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    // Handle delete
+    // Delete item: delete_uuid
     if (data.startsWith("delete_")) {
       const itemId = data.replace("delete_", "")
-      await handleDeleteItem(chatId, telegramId, itemId, callback.id)
+      await handleDeleteItem(chatId, messageId, itemId, user.id)
+      await answerCallbackQuery(query.id, "Item deleted")
       return
     }
 
-    // Handle pagination
+    // Pagination: page_lost_1, page_found_2
     if (data.startsWith("page_")) {
       const [, filter, pageStr] = data.split("_")
-      await handleBrowse(chatId, messageId!, filter, Number.parseInt(pageStr), callback.id)
+      const page = Number.parseInt(pageStr, 10)
+      await handleBrowseItems(chatId, messageId, filter, page)
+      await answerCallbackQuery(query.id)
       return
     }
 
-    await answerCallbackQuery(callback.id, "Unknown action")
+    await answerCallbackQuery(query.id, "Unknown action")
   } catch (error) {
-    console.error("[v0] Callback error:", error)
-    await answerCallbackQuery(callback.id, "An error occurred")
+    console.error("[v0] Error in handleCallbackQuery:", error)
+    await answerCallbackQuery(query.id, "Something went wrong")
   }
 }
 
-async function handleCategorySelection(
-  chatId: number,
-  telegramId: number,
-  category: string,
-  callbackId: string,
-): Promise<void> {
-  const current = await import("@/lib/telegram/conversation").then((m) => m.getConversationState(telegramId))
-  const data = current?.data || {}
-
-  await setConversationState(telegramId, "report_title", { ...data, category })
-  await answerCallbackQuery(callbackId)
-  await sendMessage(chatId, MESSAGES.ASK_TITLE, { parseMode: "HTML" })
-}
-
-async function handleLocationSelection(
-  chatId: number,
-  telegramId: number,
-  location: string,
-  callbackId: string,
-): Promise<void> {
-  const current = await import("@/lib/telegram/conversation").then((m) => m.getConversationState(telegramId))
-  const data = current?.data || {}
-
-  await setConversationState(telegramId, "report_date", { ...data, location })
-  await answerCallbackQuery(callbackId)
-  await sendMessage(chatId, MESSAGES.ASK_DATE, { parseMode: "HTML" })
-}
-
-async function handleBrowse(
+async function handleCategorySelect(
   chatId: number,
   messageId: number,
-  filter: string,
-  offset: number,
-  callbackId: string,
+  telegramId: number,
+  category: string,
 ): Promise<void> {
-  const limit = 5
+  await setConversationState(telegramId, "report_title", { category })
+  await editMessageText(chatId, messageId, `Category: <b>${category}</b>\n\n${MESSAGES.ASK_TITLE}`, {
+    parseMode: "HTML",
+  })
+}
+
+async function handleLocationSelect(
+  chatId: number,
+  messageId: number,
+  telegramId: number,
+  location: string,
+): Promise<void> {
+  await setConversationState(telegramId, "report_location_detail", { location })
+  await editMessageText(chatId, messageId, `Location: <b>${location}</b>\n\n${MESSAGES.ASK_LOCATION_DETAIL}`, {
+    parseMode: "HTML",
+  })
+}
+
+async function handleBrowseItems(chatId: number, messageId: number, filter: string, page = 0): Promise<void> {
+  const pageSize = 5
+  const offset = page * pageSize
 
   let query = supabaseAdmin
     .from("items")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("state", "active")
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1)
+    .range(offset, offset + pageSize - 1)
 
-  if (filter === "lost" || filter === "found") {
-    query = query.eq("type", filter)
+  if (filter === "lost") {
+    query = query.eq("type", "lost")
+  } else if (filter === "found") {
+    query = query.eq("type", "found")
   }
 
-  const { data: items, error } = await query
+  const { data: items, count, error } = await query
 
-  if (error) {
-    console.error("[v0] Browse error:", error)
-    await answerCallbackQuery(callbackId, "Error loading items")
+  if (error || !items || items.length === 0) {
+    await editMessageText(chatId, messageId, MESSAGES.NO_ITEMS, { parseMode: "HTML" })
     return
   }
 
-  if (!items || items.length === 0) {
-    await answerCallbackQuery(callbackId, "No more items")
-    return
-  }
-
-  const filterLabel = filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)
-  let message = `<b>Items (${filterLabel}):</b>\n\n`
-
+  let message = `<b>${filter === "all" ? "All Items" : filter === "lost" ? "Lost Items" : "Found Items"}</b>\n\n`
   items.forEach((item, index) => {
-    message += formatItemListItem(item, offset + index + 1) + "\n\n"
+    message += formatItemListItem(item as DbItem, offset + index + 1) + "\n\n"
   })
 
-  const buttons: { text: string; data: string }[][] = []
-
-  // Item buttons
-  items.forEach((item) => {
-    buttons.push([
-      {
-        text: `${item.type === "lost" ? "🔴" : "🟢"} ${item.title.slice(0, 25)}`,
-        data: `view_${item.id}`,
-      },
-    ])
-  })
-
-  // Pagination
-  const navRow: { text: string; data: string }[] = []
-  if (offset > 0) {
-    navRow.push({ text: "Previous", data: `page_${filter}_${offset - limit}` })
-  }
-  if (items.length === limit) {
-    navRow.push({ text: "Next", data: `page_${filter}_${offset + limit}` })
-  }
-  if (navRow.length > 0) {
-    buttons.push(navRow)
-  }
-
-  // Filter buttons
-  buttons.push([
-    { text: filter === "all" ? "[All]" : "All", data: "browse_all" },
-    { text: filter === "lost" ? "[Lost]" : "Lost", data: "browse_lost" },
-    { text: filter === "found" ? "[Found]" : "Found", data: "browse_found" },
+  const buttons: { text: string; data: string }[][] = items.map((item) => [
+    {
+      text: `${item.type === "lost" ? "🔴" : "🟢"} ${item.title.substring(0, 25)}`,
+      data: `view_${item.id}`,
+    },
   ])
 
-  await answerCallbackQuery(callbackId)
+  // Pagination
+  const totalPages = Math.ceil((count || 0) / pageSize)
+  if (totalPages > 1) {
+    const navButtons: { text: string; data: string }[] = []
+    if (page > 0) {
+      navButtons.push({ text: "◀️ Previous", data: `page_${filter}_${page - 1}` })
+    }
+    if (page < totalPages - 1) {
+      navButtons.push({ text: "Next ▶️", data: `page_${filter}_${page + 1}` })
+    }
+    if (navButtons.length > 0) {
+      buttons.push(navButtons)
+    }
+  }
+
   await editMessageText(chatId, messageId, message, {
     parseMode: "HTML",
     replyMarkup: createInlineKeyboard(buttons),
   })
 }
 
-async function handleViewItem(chatId: number, messageId: number, itemId: string, callbackId: string): Promise<void> {
+async function handleViewItem(chatId: number, messageId: number, itemId: string, userId: string): Promise<void> {
   const { data: item, error } = await supabaseAdmin.from("items").select("*").eq("id", itemId).single()
 
   if (error || !item) {
-    await answerCallbackQuery(callbackId, "Item not found")
+    await editMessageText(chatId, messageId, "Item not found or has been removed.", { parseMode: "HTML" })
     return
   }
 
-  const message = formatItemDetail(item)
+  const message = formatItemDetail(item as DbItem)
+  const buttons: { text: string; data: string }[][] = []
 
-  const buttons = [
-    [{ text: "Claim this item", data: `claim_${item.id}` }],
-    [{ text: "Back to list", data: "browse_all" }],
-  ]
+  // Only show claim button if not own item
+  if (item.user_id !== userId) {
+    buttons.push([{ text: "📋 Claim This Item", data: `claim_${item.id}` }])
+  }
 
-  await answerCallbackQuery(callbackId)
+  buttons.push([{ text: "◀️ Back to Browse", data: "browse_all" }])
+
   await editMessageText(chatId, messageId, message, {
     parseMode: "HTML",
     replyMarkup: createInlineKeyboard(buttons),
   })
 }
 
-async function handleMyItemView(
-  chatId: number,
-  messageId: number,
-  itemId: string,
-  telegramId: number,
-  callbackId: string,
-): Promise<void> {
-  const { data: item, error } = await supabaseAdmin.from("items").select("*").eq("id", itemId).single()
-
-  if (error || !item) {
-    await answerCallbackQuery(callbackId, "Item not found")
-    return
-  }
-
-  const message = formatItemDetail(item)
-
-  const buttons = [[{ text: "Delete Item", data: `delete_${item.id}` }]]
-
-  await answerCallbackQuery(callbackId)
-  await editMessageText(chatId, messageId, message, {
-    parseMode: "HTML",
-    replyMarkup: createInlineKeyboard(buttons),
-  })
-}
-
-async function handleStartClaim(chatId: number, telegramId: number, itemId: string, callbackId: string): Promise<void> {
+async function handleStartClaim(chatId: number, telegramId: number, itemId: string): Promise<void> {
   await setConversationState(telegramId, "claim_message", { selectedItemId: itemId })
-  await answerCallbackQuery(callbackId)
-  await sendMessage(chatId, MESSAGES.CLAIM_START, { parseMode: "HTML" })
+  await sendMessage(chatId, MESSAGES.ASK_CLAIM_MESSAGE, { parseMode: "HTML" })
 }
 
-async function handleDeleteItem(chatId: number, telegramId: number, itemId: string, callbackId: string): Promise<void> {
-  // Verify ownership
-  const user = await getOrCreateUser({ id: telegramId, is_bot: false, first_name: "" })
-  if (!user) {
-    await answerCallbackQuery(callbackId, "Error")
+async function handleMyItemView(chatId: number, messageId: number, itemId: string): Promise<void> {
+  const { data: item, error } = await supabaseAdmin.from("items").select("*").eq("id", itemId).single()
+
+  if (error || !item) {
+    await editMessageText(chatId, messageId, "Item not found.", { parseMode: "HTML" })
     return
   }
 
+  const message = formatItemDetail(item as DbItem)
+  const buttons: { text: string; data: string }[][] = [[{ text: "🗑️ Delete Item", data: `delete_${item.id}` }]]
+
+  await editMessageText(chatId, messageId, message, {
+    parseMode: "HTML",
+    replyMarkup: createInlineKeyboard(buttons),
+  })
+}
+
+async function handleDeleteItem(chatId: number, messageId: number, itemId: string, userId: string): Promise<void> {
   const { error } = await supabaseAdmin
     .from("items")
     .update({ state: "deleted" })
     .eq("id", itemId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
 
   if (error) {
-    await answerCallbackQuery(callbackId, "Failed to delete")
+    await editMessageText(chatId, messageId, "Failed to delete item.", { parseMode: "HTML" })
     return
   }
 
-  await answerCallbackQuery(callbackId, "Item deleted")
-  await clearConversationState(telegramId)
-  await sendMessage(chatId, MESSAGES.ITEM_DELETED)
+  await editMessageText(chatId, messageId, "Item has been deleted.", { parseMode: "HTML" })
 }
