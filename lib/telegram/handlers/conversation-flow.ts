@@ -5,6 +5,7 @@ import {
   updateConversationData,
   clearConversationState,
   type ConversationData,
+  getConversationState,
 } from "@/lib/telegram/conversation"
 import { MESSAGES } from "@/lib/telegram/messages"
 import { CAMPUS_LOCATIONS } from "@/lib/telegram/types"
@@ -134,7 +135,11 @@ async function handleReportPhotos(
   const text = message.text?.trim().toLowerCase() || ""
 
   if (text === "/done" || text === "/skip") {
-    await createItem(chatId, telegramId, user, data)
+    const freshState = await getConversationState(telegramId)
+    const freshData = freshState?.data || data
+
+    console.log("[v0] Creating item with data:", JSON.stringify(freshData, null, 2))
+    await createItem(chatId, telegramId, user, freshData)
     return
   }
 
@@ -142,7 +147,10 @@ async function handleReportPhotos(
     const photos = data.photos || []
     const largestPhoto = message.photo[message.photo.length - 1]
     photos.push(largestPhoto.file_id)
-    await updateConversationData(telegramId, { photos })
+
+    await setConversationState(telegramId, "report_photos", { ...data, photos })
+    console.log("[v0] Photo added, total photos:", photos.length)
+
     await sendMessage(chatId, MESSAGES.PHOTO_RECEIVED, { parseMode: "HTML" })
   } else {
     await sendMessage(chatId, "Please send a photo or type /done to finish.", { parseMode: "HTML" })
@@ -150,6 +158,27 @@ async function handleReportPhotos(
 }
 
 async function createItem(chatId: number, telegramId: number, user: DbUser, data: ConversationData): Promise<void> {
+  console.log("[v0] createItem called with:", {
+    userId: user.id,
+    itemType: data.itemType,
+    category: data.category,
+    title: data.title,
+    location: data.location,
+    dateOccurred: data.dateOccurred,
+    photosCount: data.photos?.length || 0,
+  })
+
+  if (!data.title || !data.category || !data.itemType) {
+    console.error("[v0] Missing required fields:", {
+      title: data.title,
+      category: data.category,
+      itemType: data.itemType,
+    })
+    await sendMessage(chatId, MESSAGES.ERROR, { parseMode: "HTML" })
+    await clearConversationState(telegramId)
+    return
+  }
+
   const { data: item, error } = await supabaseAdmin
     .from("items")
     .insert({
@@ -173,6 +202,8 @@ async function createItem(chatId: number, telegramId: number, user: DbUser, data
     return
   }
 
+  console.log("[v0] Item created successfully:", item.id)
+
   if (data.photos && data.photos.length > 0) {
     const photoInserts = data.photos.map((fileId) => ({
       item_id: item.id,
@@ -189,7 +220,6 @@ async function createItem(chatId: number, telegramId: number, user: DbUser, data
   const successMessage = data.itemType === "lost" ? MESSAGES.ITEM_CREATED_LOST : MESSAGES.ITEM_CREATED_FOUND
   await sendMessage(chatId, successMessage, { parseMode: "HTML" })
 
-  // Check for matches asynchronously
   notifyPotentialMatches(item.id).catch(console.error)
 }
 
@@ -250,7 +280,6 @@ async function handleClaimMessage(
     return
   }
 
-  // Check if claim already exists
   const { data: existingClaim } = await supabaseAdmin
     .from("claims")
     .select("id")
@@ -264,7 +293,6 @@ async function handleClaimMessage(
     return
   }
 
-  // Create claim with correct column names
   const { error } = await supabaseAdmin.from("claims").insert({
     item_id: data.selectedItemId,
     claimant_user_id: user.id,
